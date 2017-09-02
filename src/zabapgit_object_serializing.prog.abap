@@ -11,6 +11,7 @@ INCLUDE zabapgit_object_clas.
 INCLUDE zabapgit_object_cmpt.
 INCLUDE zabapgit_object_dcls.
 INCLUDE zabapgit_object_ddls.
+INCLUDE zabapgit_object_devc.
 INCLUDE zabapgit_object_dial.
 INCLUDE zabapgit_object_doct.
 INCLUDE zabapgit_object_docv.
