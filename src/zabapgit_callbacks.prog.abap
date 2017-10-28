@@ -113,12 +113,13 @@ CLASS lcl_callback_adapter DEFINITION CREATE PRIVATE.
                                  RETURNING VALUE(rv_implemented) TYPE abap_bool,
       check_listener_methimp_has_par IMPORTING iv_methname          TYPE abap_methname
                                                iv_parmname          TYPE abap_parmname
-                                     RETURNING VALUE(rv_par_exists) TYPE abap_bool.
+                                     RETURNING VALUE(rv_par_exists) TYPE abap_bool,
+      get_listener_instance RETURNING VALUE(ro_listener) TYPE REF TO object
+                            RAISING   cx_sy_create_object_error,
+      get_listener_descr RETURNING VALUE(ro_descr) TYPE REF TO cl_abap_classdescr.
     DATA:
       mo_repository         TYPE REF TO lcl_repo,
-      mo_listener           TYPE REF TO object,
-      mv_callback_classname TYPE string,
-      mo_listener_descr     TYPE REF TO cl_abap_classdescr.
+      mv_callback_classname TYPE string.
 ENDCLASS.
 
 CLASS lcl_callback_adapter IMPLEMENTATION.
@@ -164,6 +165,7 @@ CLASS lcl_callback_adapter IMPLEMENTATION.
 
     ASSERT io_repo IS BOUND.
     mo_repository = io_repo.
+    mv_callback_classname = mo_repository->get_dot_abapgit( )->get_callback_classname( ).
 
     TRY.
         init_listener( ).
@@ -176,17 +178,17 @@ CLASS lcl_callback_adapter IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD init_listener.
-    mv_callback_classname = mo_repository->get_dot_abapgit( )->get_callback_classname( ).
-
-    IF mv_callback_classname IS NOT INITIAL.
-      CREATE OBJECT mo_listener TYPE (mv_callback_classname).
-    ELSE.
-      CREATE OBJECT mo_listener TYPE lcl_dummy_callback_listener.
-    ENDIF.
-
-    ASSERT mo_listener IS BOUND.
-    mo_listener_descr ?= cl_abap_typedescr=>describe_by_object_ref( mo_listener ).
-    ASSERT mo_listener_descr IS BOUND.
+*    mv_callback_classname = mo_repository->get_dot_abapgit( )->get_callback_classname( ).
+*
+*    IF mv_callback_classname IS NOT INITIAL.
+*      CREATE OBJECT mo_listener TYPE (mv_callback_classname).
+*    ELSE.
+*      CREATE OBJECT mo_listener TYPE lcl_dummy_callback_listener.
+*    ENDIF.
+*
+*    ASSERT mo_listener IS BOUND.
+*    mo_listener_descr ?= cl_abap_typedescr=>describe_by_object_ref( mo_listener ).
+*    ASSERT mo_listener_descr IS BOUND.
   ENDMETHOD.
 
   METHOD lif_callback_listener~on_after_deserialize.
@@ -206,7 +208,7 @@ CLASS lcl_callback_adapter IMPLEMENTATION.
       INSERT ls_parameter INTO TABLE lt_parameters.
     ENDIF.
 
-    dyn_call_method( io_object     = mo_listener
+    dyn_call_method( io_object     = get_listener_instance( )
                      iv_methname   = gc_methnames-on_after_deserialize
                      it_parameters = lt_parameters ).
   ENDMETHOD.
@@ -228,7 +230,7 @@ CLASS lcl_callback_adapter IMPLEMENTATION.
       INSERT ls_parameter INTO TABLE lt_parameters.
     ENDIF.
 
-    dyn_call_method( io_object     = mo_listener
+    dyn_call_method( io_object     = get_listener_instance( )
                      iv_methname   = gc_methnames-on_before_uninstall
                      it_parameters = lt_parameters ).
   ENDMETHOD.
@@ -274,18 +276,25 @@ CLASS lcl_callback_adapter IMPLEMENTATION.
 
     lo_ref_descr ?= cl_abap_typedescr=>describe_by_data( lo_dummy ).
     lo_class_descr ?= lo_ref_descr->get_referenced_type( ).
-    rv_is_dummy = lo_class_descr->applies_to( mo_listener ).
+    rv_is_dummy = boolc( lo_class_descr->absolute_name = get_listener_descr( )->absolute_name ).
   ENDMETHOD.
 
   METHOD check_listener_impl_method.
+    DATA: lo_listener_descr TYPE REF TO cl_abap_classdescr.
+
     rv_implemented = abap_false.
 
-    READ TABLE mo_listener_descr->methods WITH KEY name = iv_methname
+    lo_listener_descr = get_listener_descr( ).
+
+*    DATA(lo_descr) = CAST cl_abap_classdescr( cl_abap_typedescr=>describe_by_name( mv_callback_classname ) ).
+*    DATA(lo_descr2) = CAST cl_abap_classdescr( cl_abap_typedescr=>describe_by_object_ref( mo_listener ) ).
+
+    READ TABLE lo_listener_descr->methods WITH KEY name = iv_methname
                                           TRANSPORTING NO FIELDS.
     IF sy-subrc = 0.
       rv_implemented = abap_true.
     ELSE.
-      READ TABLE mo_listener_descr->methods
+      READ TABLE lo_listener_descr->methods
            WITH KEY name = |{ get_callback_intf_descr( )->get_relative_name( ) }~{ iv_methname }|
            TRANSPORTING NO FIELDS.
       IF sy-subrc = 0.
@@ -295,14 +304,16 @@ CLASS lcl_callback_adapter IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD check_listener_methimp_has_par.
-    DATA: lo_intf_descr TYPE REF TO cl_abap_intfdescr.
+    DATA: lo_intf_descr     TYPE REF TO cl_abap_intfdescr,
+          lo_listener_descr TYPE REF TO cl_abap_classdescr.
     FIELD-SYMBOLS: <ls_method>        TYPE abap_methdescr,
                    <ls_parameter>     TYPE abap_parmdescr,
                    <ls_method_def>    TYPE abap_methdescr,
                    <ls_parameter_def> TYPE abap_parmdescr.
 
     " Method must exist, check with check_listener_impl_method
-    READ TABLE mo_listener_descr->methods WITH KEY name = iv_methname ASSIGNING <ls_method>.
+    lo_listener_descr = get_listener_descr( ).
+    READ TABLE lo_listener_descr->methods WITH KEY name = iv_methname ASSIGNING <ls_method>.
     ASSERT sy-subrc = 0.
 
     LOOP AT <ls_method>-parameters ASSIGNING <ls_parameter> WHERE name = iv_parmname.
@@ -326,6 +337,57 @@ CLASS lcl_callback_adapter IMPLEMENTATION.
       " Parameter does not exist
       rv_par_exists = abap_false.
     ENDIF.
+  ENDMETHOD.
+
+  METHOD get_listener_instance.
+    IF mv_callback_classname IS NOT INITIAL.
+      CREATE OBJECT ro_listener TYPE (mv_callback_classname).
+    ELSE.
+      CREATE OBJECT ro_listener TYPE lcl_dummy_callback_listener.
+    ENDIF.
+
+    ASSERT ro_listener IS BOUND.
+  ENDMETHOD.
+
+  METHOD get_listener_descr.
+    TYPES:
+      BEGIN OF xtype_type,
+        i1 TYPE i,
+        i2 TYPE i,
+      END   OF xtype_type.
+    DATA: dref            TYPE REF TO cl_abap_classdescr,
+          access_friends  TYPE abap_frnddescr_tab,
+          exposed_friends TYPE abap_frnddescr_tab.
+
+    DATA: lv_xtype TYPE xtype_type,
+          lv_kind  TYPE c LENGTH 1.
+
+    DATA:
+      crc TYPE xtype_type
+*      res LIKE p_descr_ref
+      .
+
+*   check name for sequence of c
+    SYSTEM-CALL CHECK mv_callback_classname FOR SEQUENCE OF C
+      CLASS 'CL_ABAP_TYPEDESCR' METHOD 'DESCRIBE_BY_NAME' PARAMETER 'P_NAME'.
+
+*   get administration information
+    SYSTEM-CALL DESCRIBE ADMINISTRATION
+      MODE 'N' OF mv_callback_classname INTO lv_xtype crc lv_kind.
+
+
+    CREATE OBJECT dref.
+    SYSTEM-CALL DESCRIBE CLASS lv_xtype
+      INTO dref->absolute_name  dref->type_kind     dref->length
+           dref->decimals       dref->interfaces    dref->types
+           dref->attributes     dref->methods       dref->events
+           dref->class_kind     dref->create_visibility
+           access_friends       exposed_friends.
+    dref->me_xtype = xtype.
+    dref->kind  = kind_class.
+    ro_descr = dref.
+*    ro_descr ?= cl_abap_typedescr=>describe_by_name( p_name =  )
+    ASSERT ro_descr IS BOUND.
   ENDMETHOD.
 
   METHOD dyn_call_method.
