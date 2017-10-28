@@ -338,8 +338,7 @@ CLASS lcl_object_devc IMPLEMENTATION.
     ENDIF.
 
     " Clear things related to local installation package
-    CLEAR: ls_package_data-namespace,
-           ls_package_data-dlvunit,
+    CLEAR: ls_package_data-dlvunit,
            ls_package_data-pdevclass.
 
     " Not usable on customer systems
