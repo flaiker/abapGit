@@ -30,8 +30,12 @@ CLASS zcl_abapgit_factory DEFINITION
           iv_package             TYPE devclass
         RETURNING
           VALUE(ri_syntax_check) TYPE REF TO zif_abapgit_code_inspector
-        raising
-          zcx_abapgit_exception.
+        RAISING
+          zcx_abapgit_exception,
+
+      get_dependency_manager
+        RETURNING
+          VALUE(ri_dependency_manager) TYPE REF TO zif_abapgit_dependency_manager.
 
 
   PRIVATE SECTION.
@@ -58,10 +62,11 @@ CLASS zcl_abapgit_factory DEFINITION
                        WITH UNIQUE KEY package.
 
     CLASS-DATA:
-      mi_tadir          TYPE REF TO zif_abapgit_tadir,
-      mt_sap_package    TYPE tty_sap_package,
-      mt_code_inspector TYPE tty_code_inspector,
-      mt_syntax_check   TYPE tty_syntax_check.
+      mi_tadir              TYPE REF TO zif_abapgit_tadir,
+      mt_sap_package        TYPE tty_sap_package,
+      mt_code_inspector     TYPE tty_code_inspector,
+      mt_syntax_check       TYPE tty_syntax_check,
+      gi_dependency_manager TYPE REF TO zif_abapgit_dependency_manager.
 
 ENDCLASS.
 
@@ -154,4 +159,11 @@ CLASS zcl_abapgit_factory IMPLEMENTATION.
 
   ENDMETHOD.
 
+  METHOD get_dependency_manager.
+    IF gi_dependency_manager IS NOT BOUND.
+      CREATE OBJECT gi_dependency_manager TYPE zcl_abapgit_dependency_manager.
+    ENDIF.
+
+    ri_dependency_manager = gi_dependency_manager.
+  ENDMETHOD.
 ENDCLASS.
