@@ -124,6 +124,13 @@ CLASS zcl_abapgit_gui_router DEFINITION
       RAISING
         zcx_abapgit_exception
         zcx_abapgit_cancel .
+    METHODS get_page_transport_overview
+      IMPORTING
+        iv_getdata     TYPE clike
+      RETURNING
+        VALUE(ri_page) TYPE REF TO zif_abapgit_gui_page
+      RAISING
+        zcx_abapgit_exception.
     CLASS-METHODS jump_display_transport
       IMPORTING
         !iv_getdata TYPE clike .
@@ -225,6 +232,9 @@ CLASS ZCL_ABAPGIT_GUI_ROUTER IMPLEMENTATION.
       WHEN zif_abapgit_definitions=>c_action-go_tutorial.                     " Go to tutorial
         zcl_abapgit_persistence_user=>get_instance( )->set_repo_show( '' ).        " Clear show_id
         ev_state = zif_abapgit_definitions=>c_event_state-re_render.          " Assume we are on main page
+      WHEN zif_abapgit_definitions=>c_action-go_transport_overview.
+        ei_page = get_page_transport_overview( is_event_data-getdata ).
+        ev_state = zif_abapgit_definitions=>c_event_state-new_page.
     ENDCASE.
 
   ENDMETHOD.
@@ -352,6 +362,22 @@ CLASS ZCL_ABAPGIT_GUI_ROUTER IMPLEMENTATION.
 
     ENDIF.
 
+  ENDMETHOD.
+
+
+  METHOD get_page_transport_overview.
+    DATA: lo_repo TYPE REF TO zcl_abapgit_repo_online,
+          lo_page TYPE REF TO zcl_abapgit_gui_page_transport,
+          lv_key  TYPE zif_abapgit_persistence=>ty_repo-key.
+
+    lv_key = iv_getdata.
+    lo_repo ?= zcl_abapgit_repo_srv=>get_instance( )->get( lv_key ).
+
+    CREATE OBJECT lo_page
+      EXPORTING
+        io_repo = lo_repo.
+
+    ri_page = lo_page.
   ENDMETHOD.
 
 

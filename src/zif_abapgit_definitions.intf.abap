@@ -470,6 +470,7 @@ INTERFACE zif_abapgit_definitions
       go_settings              TYPE string VALUE 'go_settings',
       go_tutorial              TYPE string VALUE 'go_tutorial',
       go_patch                 TYPE string VALUE 'go_patch',
+      go_transport_overview    TYPE string VALUE 'go_transport_overview',
 
       jump                     TYPE string VALUE 'jump',
       jump_pkg                 TYPE string VALUE 'jump_pkg',

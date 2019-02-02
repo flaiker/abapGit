@@ -93,7 +93,7 @@ ENDCLASS.
 
 
 
-CLASS ZCL_ABAPGIT_GUI_VIEW_REPO IMPLEMENTATION.
+CLASS zcl_abapgit_gui_view_repo IMPLEMENTATION.
 
 
   METHOD build_dir_jump_link.
@@ -264,6 +264,10 @@ CLASS ZCL_ABAPGIT_GUI_VIEW_REPO IMPLEMENTATION.
                        io_sub = lo_tb_branch ) ##NO_TEXT.
       ro_toolbar->add( iv_txt = 'Tag'
                        io_sub = lo_tb_tag ) ##NO_TEXT.
+      IF zcl_abapgit_factory=>get_cts_api( )->is_chrec_possible_for_package( mo_repo->get_package( ) ).
+        ro_toolbar->add( iv_txt = 'Transports'
+                         iv_act = |{ zif_abapgit_definitions=>c_action-go_transport_overview }?{ lv_key }| ).
+      ENDIF.
     ELSE.
       IF mo_repo->has_remote_source( ) = abap_true AND iv_rstate IS NOT INITIAL.
         ro_toolbar->add( iv_txt = 'Pull <sup>zip</sup>'
