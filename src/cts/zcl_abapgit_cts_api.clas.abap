@@ -117,15 +117,16 @@ CLASS zcl_abapgit_cts_api IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD zif_abapgit_cts_api~get_current_trs_for_objs.
-    FIELD-SYMBOLS: <ls_object> LIKE LINE OF it_objects.
+    FIELD-SYMBOLS: <ls_object> LIKE LINE OF it_objects,
+                   <ls_new>    LIKE LINE OF rt_objects.
     DATA: ls_new_line LIKE LINE OF rt_objects.
 
     LOOP AT it_objects ASSIGNING <ls_object>.
       TRY.
           CLEAR ls_new_line.
           MOVE-CORRESPONDING <ls_object> TO ls_new_line.
-          INSERT ls_new_line INTO TABLE rt_objects.
-          ls_new_line-transport = zif_abapgit_cts_api~get_current_transport_for_obj(
+          INSERT ls_new_line INTO TABLE rt_objects ASSIGNING <ls_new>.
+          <ls_new>-transport = zif_abapgit_cts_api~get_current_transport_for_obj(
             iv_program_id  = ls_new_line-program_id
             iv_object_type = ls_new_line-object_type
             iv_object_name = ls_new_line-object_name
