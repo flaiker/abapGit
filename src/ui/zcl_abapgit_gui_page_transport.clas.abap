@@ -85,18 +85,21 @@ CLASS zcl_abapgit_gui_page_transport IMPLEMENTATION.
           lt_objects             TYPE zif_abapgit_cts_api=>gty_object_tab,
           lt_object_with_tr_sort TYPE STANDARD TABLE OF zif_abapgit_cts_api=>gty_object_transport,
           lv_last_transport      TYPE trkorr,
-          ls_object              LIKE LINE OF lt_objects.
+          ls_object              LIKE LINE OF lt_objects,
+          lv_column_count        TYPE i.
     FIELD-SYMBOLS: <ls_line>           LIKE LINE OF lt_list,
                    <ls_file>           TYPE zif_abapgit_definitions=>ty_file_item,
                    <ls_object_with_tr> TYPE zif_abapgit_cts_api=>gty_object_transport.
 
     CREATE OBJECT ro_html.
 
-    ro_html->add( '<table id="transportTab" class="stage_tab w100">' ).
+    ro_html->add( '<table class="stage_tab w100">' ).
     ro_html->add( '<thead><tr><th>Transport request</th><th>Description</th><th>Owner</th><th>Last changed</th>' &&
                   '<th>Target</th>' ).
+    lv_column_count = 5.
     IF mv_experimental_on = abap_true.
       ro_html->add( '<th>Branch</th><th>Actions</th>' ).
+      lv_column_count = 7.
     ENDIF.
     ro_html->add( '</thead>' ).
 
@@ -134,7 +137,13 @@ CLASS zcl_abapgit_gui_page_transport IMPLEMENTATION.
     LOOP AT lt_list ASSIGNING <ls_line>.
       CASE <ls_line>-kind.
         WHEN lc_line_kinds-transport.
-          ro_html->add( |<tr><td>{ <ls_line>-transport }</td><td>{ <ls_line>-text }</td>| &&
+          ro_html->add( |<tr id="tr{ <ls_line>-transport }"><td>| ).
+          ro_html->add_a( iv_txt = zcl_abapgit_html=>icon( iv_name = 'unfold' iv_hint = 'Expand' )
+                          iv_act = |toggleTransportChildren('{ <ls_line>-transport }')|
+                          iv_typ = zif_abapgit_definitions=>c_action_type-onclick ).
+          ro_html->add_a( iv_txt = |{ <ls_line>-transport }|
+                          iv_act = |{ zif_abapgit_definitions=>c_action-jump_transport }?{ <ls_line>-transport }| ).
+          ro_html->add( |</td><td>{ <ls_line>-text }</td>| &&
                         |<td>{ <ls_line>-owner }</td><td>{ <ls_line>-changed_date DATE = USER } | &&
                         |{ <ls_line>-changed_time TIME = USER }</td><td>{ <ls_line>-target_system }| &&
                         |{ COND #( WHEN <ls_line>-target_client IS NOT INITIAL THEN '.' ) }| &&
@@ -148,7 +157,9 @@ CLASS zcl_abapgit_gui_page_transport IMPLEMENTATION.
           ENDIF.
           ro_html->add( |</tr>| ).
         WHEN lc_line_kinds-item.
-          ro_html->add( |<tr><td>{ <ls_line>-object_type } { <ls_line>-object_name }</td></tr>| ).
+          ro_html->add( |<tr class="{ <ls_line>-transport }"><td colspan="{ lv_column_count }">| &&
+                        |{ <ls_line>-object_type } | &&
+                        |{ <ls_line>-object_name }</td></tr>| ).
       ENDCASE.
     ENDLOOP.
     ro_html->add( '</tbody>' ).

@@ -207,6 +207,20 @@ function toggleRepoListDetail() {
 }
 
 /**********************************************************
+ * Transport Overview Logic
+ **********************************************************/
+function toggleTransportChildren(transport) {
+  var transportRow = document.getElementById("tr" + transport);
+  if (transportRow) {
+    var rows = document.getElementsByClassName(transport);
+    for (var i = 0; i < rows.length; i++) {
+      rows[i].style.display = rows[i].style.display === "none" ? "" : "none";
+    }
+  }
+}
+
+
+/**********************************************************
  * STAGE PAGE Logic
  **********************************************************/
 
