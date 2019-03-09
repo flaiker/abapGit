@@ -168,7 +168,7 @@ ENDCLASS.
 
 
 
-CLASS ZCL_ABAPGIT_OBJECTS_PROGRAM IMPLEMENTATION.
+CLASS zcl_abapgit_objects_program IMPLEMENTATION.
 
 
   METHOD add_tpool.
@@ -392,7 +392,8 @@ CLASS ZCL_ABAPGIT_OBJECTS_PROGRAM IMPLEMENTATION.
           lv_progname    TYPE reposrc-progname,
           ls_tpool       LIKE LINE OF it_tpool,
           lv_title       TYPE rglif-title,
-          ls_progdir_new TYPE progdir.
+          ls_progdir_new TYPE progdir,
+          lv_unam        TYPE unam.
 
     FIELD-SYMBOLS: <lg_any> TYPE any.
 
@@ -523,6 +524,12 @@ CLASS ZCL_ABAPGIT_OBJECTS_PROGRAM IMPLEMENTATION.
     ls_progdir_new-varcl   = is_progdir-varcl.
     ls_progdir_new-appl    = is_progdir-appl.
     ls_progdir_new-rstat   = is_progdir-rstat.
+    ls_progdir_new-edtx    = is_progdir-edtx.
+    ls_progdir_new-unam    = is_progdir-unam.
+
+    IF ls_progdir_new-edtx = abap_true ##TODO.
+      BREAK-POINT.
+    ENDIF.
 
     CALL FUNCTION 'UPDATE_PROGDIR'
       EXPORTING
@@ -539,11 +546,39 @@ CLASS ZCL_ABAPGIT_OBJECTS_PROGRAM IMPLEMENTATION.
     SELECT SINGLE * FROM progdir INTO ls_progdir_new
       WHERE name = ls_progdir_new-name
       AND state = ls_progdir_new-state.
-    IF sy-subrc = 0 AND is_progdir-varcl = space AND ls_progdir_new-varcl = abap_true.
-* function module UPDATE_PROGDIR does not update VARCL
+    IF sy-subrc = 0 AND ( is_progdir-varcl <> ls_progdir_new-varcl OR
+                          ls_progdir_new-edtx = abap_true ).
+* function module UPDATE_PROGDIR does not update VARCL or UNAM. UNAM is used for EDTX
+      IF ls_progdir_new-edtx = abap_true AND ls_progdir_new-unam IS NOT INITIAL.
+        lv_unam = is_progdir-unam.
+      ELSE.
+        lv_unam = ls_progdir_new-unam.
+      ENDIF.
       UPDATE progdir SET varcl = is_progdir-varcl
+                         unam  = lv_unam
         WHERE name = ls_progdir_new-name
         AND state = ls_progdir_new-state.                 "#EC CI_SUBRC
+
+      IF ls_progdir_new-state = 'I'.
+        " Updating inactive progdir requires an inactive version of PROG as well?
+        " See SAPLSEDTATTR LSEDTATTRF10 UPDATE_HEADER
+*        CALL FUNCTION 'RS_WORKING_AREA_INIT'.
+*        CALL FUNCTION 'RS_INSERT_INTO_WORKING_AREA'
+*          EXPORTING
+*            object   = 'REPS'
+*            obj_name = e071_name
+*          EXCEPTIONS
+*            OTHERS   = 1.
+*        IF sy-subrc <> 0.
+*          MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
+*                  WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+*        ENDIF.
+*        READ REPORT   ls_progdir_new-name INTO source STATE active.
+*        INSERT REPORT trdir-name FROM source STATE inactive.
+*        CALL FUNCTION 'RS_COPY_INDEX_ACTIV_TO_INACTIV'
+*          EXPORTING
+*            program = trdir-name.
+      ENDIF.
     ENDIF.
 
     zcl_abapgit_objects_activation=>add(
@@ -673,10 +708,8 @@ CLASS ZCL_ABAPGIT_OBJECTS_PROGRAM IMPLEMENTATION.
         e_progdir  = ls_sapdir.
     MOVE-CORRESPONDING ls_sapdir TO rs_progdir.
 
-    CLEAR: rs_progdir-edtx,
-           rs_progdir-cnam,
+    CLEAR: rs_progdir-cnam,
            rs_progdir-cdat,
-           rs_progdir-unam,
            rs_progdir-udat,
            rs_progdir-levl,
            rs_progdir-vern,
@@ -685,6 +718,10 @@ CLASS ZCL_ABAPGIT_OBJECTS_PROGRAM IMPLEMENTATION.
            rs_progdir-stime,
            rs_progdir-idate,
            rs_progdir-itime.
+
+    IF rs_progdir-edtx = abap_false.
+      CLEAR rs_progdir-unam.
+    ENDIF.
 
   ENDMETHOD.
 
