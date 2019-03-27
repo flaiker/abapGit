@@ -18,6 +18,7 @@ CLASS zcl_abapgit_gui_view_repo DEFINITION
         toggle_folders    TYPE string VALUE 'toggle_folders' ##NO_TEXT,
         toggle_changes    TYPE string VALUE 'toggle_changes' ##NO_TEXT,
         display_more      TYPE string VALUE 'display_more' ##NO_TEXT,
+        toggle_cts_view   TYPE string VALUE 'toggle_cts_view' ##NO_TEXT,
       END OF c_actions .
 
     METHODS constructor
@@ -35,7 +36,8 @@ CLASS zcl_abapgit_gui_view_repo DEFINITION
           mv_max_lines    TYPE i,
           mv_max_setting  TYPE i,
           mv_show_folders TYPE abap_bool,
-          mv_changes_only TYPE abap_bool.
+          mv_changes_only TYPE abap_bool,
+          mv_cts_view     TYPE abap_bool.
 
     METHODS:
       render_head_line
@@ -94,7 +96,7 @@ ENDCLASS.
 
 
 
-CLASS ZCL_ABAPGIT_GUI_VIEW_REPO IMPLEMENTATION.
+CLASS zcl_abapgit_gui_view_repo IMPLEMENTATION.
 
 
   METHOD build_dir_jump_link.
@@ -132,6 +134,14 @@ CLASS ZCL_ABAPGIT_GUI_VIEW_REPO IMPLEMENTATION.
       iv_txt = 'Show folders'
       iv_chk = mv_show_folders
       iv_act = c_actions-toggle_folders ).
+
+    ro_toolbar->add(  " CTS view
+      iv_txt = 'Toggle CTS view'
+      iv_chk = mv_cts_view
+      iv_act = c_actions-toggle_cts_view ).
+    IF mv_cts_view = abap_true.
+      mv_show_folders = abap_false.
+    ENDIF.
 
   ENDMETHOD.
 
@@ -674,6 +684,10 @@ CLASS ZCL_ABAPGIT_GUI_VIEW_REPO IMPLEMENTATION.
       WHEN c_actions-toggle_changes.    " Toggle changes only view
         mv_changes_only = zcl_abapgit_persistence_user=>get_instance( )->toggle_changes_only( ).
         ev_state        = zcl_abapgit_gui=>c_event_state-re_render.
+      WHEN c_actions-toggle_cts_view.    " Toggle CTS view
+        mv_cts_view = xsdbool( mv_changes_only = abap_false ).
+*        mv_changes_only = zcl_abapgit_persistence_user=>get_instance( )->toggle_changes_only( ).
+        ev_state        = zcl_abapgit_gui=>c_event_state-re_render.
       WHEN c_actions-display_more.      " Increase MAX lines limit
         mv_max_lines    = mv_max_lines + mv_max_setting.
         ev_state        = zcl_abapgit_gui=>c_event_state-re_render.
@@ -715,9 +729,10 @@ CLASS ZCL_ABAPGIT_GUI_VIEW_REPO IMPLEMENTATION.
           EXPORTING
             io_repo = mo_repo.
 
-        lt_repo_items = lo_browser->list( iv_path         = mv_cur_dir
-                                          iv_by_folders   = mv_show_folders
-                                          iv_changes_only = mv_changes_only ).
+        lt_repo_items = lo_browser->list( iv_path               = mv_cur_dir
+                                          iv_by_folders         = mv_show_folders
+                                          iv_changes_only       = mv_changes_only
+                                          iv_group_by_transport = mv_cts_view ).
 
         LOOP AT lt_repo_items ASSIGNING <ls_item>.
           zcl_abapgit_state=>reduce( EXPORTING iv_cur = <ls_item>-lstate

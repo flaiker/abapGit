@@ -8,10 +8,11 @@ CLASS zcl_abapgit_repo_content_list DEFINITION
       IMPORTING io_repo TYPE REF TO zcl_abapgit_repo.
 
     METHODS list
-      IMPORTING iv_path              TYPE string
-                iv_by_folders        TYPE abap_bool
-                iv_changes_only      TYPE abap_bool
-      RETURNING VALUE(rt_repo_items) TYPE zif_abapgit_definitions=>tt_repo_items
+      IMPORTING iv_path               TYPE string
+                iv_by_folders         TYPE abap_bool
+                iv_changes_only       TYPE abap_bool
+                iv_group_by_transport TYPE abap_bool
+      RETURNING VALUE(rt_repo_items)  TYPE zif_abapgit_definitions=>tt_repo_items
       RAISING   zcx_abapgit_exception.
 
     METHODS get_log
@@ -19,16 +20,19 @@ CLASS zcl_abapgit_repo_content_list DEFINITION
   PROTECTED SECTION.
   PRIVATE SECTION.
     CONSTANTS: BEGIN OF c_sortkey,
-                 default    TYPE i VALUE 9999,
-                 parent_dir TYPE i VALUE 0,
-                 dir        TYPE i VALUE 1,
-                 orphan     TYPE i VALUE 2,
-                 changed    TYPE i VALUE 3,
-                 inactive   TYPE i VALUE 4,
+                 default           TYPE i VALUE 9999,
+                 parent_dir        TYPE i VALUE 0,
+                 dir               TYPE i VALUE 1,
+                 orphan            TYPE i VALUE 2,
+                 changed           TYPE i VALUE 3,
+                 inactive          TYPE i VALUE 4,
+                 transport_request TYPE i VALUE 0,
+                 transport_task    TYPE i VALUE 1,
                END OF c_sortkey.
 
-    DATA: mo_repo TYPE REF TO zcl_abapgit_repo,
-          mi_log  TYPE REF TO zif_abapgit_log.
+    DATA: mo_repo    TYPE REF TO zcl_abapgit_repo,
+          mi_log     TYPE REF TO zif_abapgit_log,
+          mi_cts_api TYPE REF TO zif_abapgit_cts_api.
 
     METHODS build_repo_items_local_only
       RETURNING VALUE(rt_repo_items) TYPE zif_abapgit_definitions=>tt_repo_items
@@ -45,11 +49,15 @@ CLASS zcl_abapgit_repo_content_list DEFINITION
 
     METHODS filter_changes
       CHANGING ct_repo_items TYPE zif_abapgit_definitions=>tt_repo_items.
+
+    METHODS enrich_list_with_cts_data
+      CHANGING ct_repo_items TYPE zif_abapgit_definitions=>tt_repo_items
+      RAISING  zcx_abapgit_exception.
 ENDCLASS.
 
 
 
-CLASS ZCL_ABAPGIT_REPO_CONTENT_LIST IMPLEMENTATION.
+CLASS zcl_abapgit_repo_content_list IMPLEMENTATION.
 
 
   METHOD build_folders.
@@ -192,6 +200,7 @@ CLASS ZCL_ABAPGIT_REPO_CONTENT_LIST IMPLEMENTATION.
   METHOD constructor.
     mo_repo = io_repo.
     CREATE OBJECT mi_log TYPE zcl_abapgit_log.
+    mi_cts_api = zcl_abapgit_factory=>get_cts_api( ).
   ENDMETHOD.
 
 
@@ -233,5 +242,97 @@ CLASS ZCL_ABAPGIT_REPO_CONTENT_LIST IMPLEMENTATION.
       obj_type ASCENDING
       obj_name ASCENDING.
 
+    IF iv_group_by_transport = abap_true.
+      enrich_list_with_cts_data( CHANGING ct_repo_items = rt_repo_items ).
+    ENDIF.
+
+  ENDMETHOD.
+
+  METHOD enrich_list_with_cts_data.
+    TYPES: BEGIN OF lty_cts_repo_item.
+        INCLUDE TYPE  zif_abapgit_definitions=>ty_repo_item.
+    TYPES: transport_request TYPE trkorr,
+           transport_task    TYPE trkorr,
+           END OF lty_cts_repo_item.
+    DATA: lv_index        TYPE i,
+          lt_locked_items TYPE STANDARD TABLE OF lty_cts_repo_item,
+          ls_locked_item  LIKE LINE OF lt_locked_items,
+          lx_cts_error    TYPE REF TO zcx_abapgit_exception.
+
+    FIELD-SYMBOLS: <ls_item>              LIKE LINE OF ct_repo_items,
+                   <ls_locked_item>       LIKE LINE OF lt_locked_items,
+                   <ls_transport_request> LIKE LINE OF ct_repo_items,
+                   <ls_transport_task>    LIKE LINE OF ct_repo_items.
+
+
+    LOOP AT ct_repo_items ASSIGNING <ls_item>.
+      lv_index = sy-tabix.
+
+      TRY.
+          IF mi_cts_api->is_object_type_lockable(
+               iv_object_type = <ls_item>-obj_type
+             ) = abap_true AND
+             mi_cts_api->is_object_locked_in_transport(
+               iv_object_type = <ls_item>-obj_type
+               iv_object_name = <ls_item>-obj_name ) = abap_true.
+
+            MOVE-CORRESPONDING <ls_item> TO ls_locked_item.
+
+            ls_locked_item-transport_request = mi_cts_api->get_current_transport_for_obj(
+              iv_object_type             = <ls_item>-obj_type
+              iv_object_name             = <ls_item>-obj_name
+              iv_resolve_task_to_request = abap_true ).
+
+            ls_locked_item-transport_task = mi_cts_api->get_current_transport_for_obj(
+              iv_object_type             = <ls_item>-obj_type
+              iv_object_name             = <ls_item>-obj_name
+              iv_resolve_task_to_request = abap_false ).
+
+            APPEND ls_locked_item TO lt_locked_items.
+            CLEAR ls_locked_item.
+
+            DELETE ct_repo_items INDEX lv_index.
+          ENDIF.
+
+        CATCH zcx_abapgit_exception INTO lx_cts_error.
+          mi_log->add_error( |{ <ls_item>-obj_type } { <ls_item>-obj_name }: { lx_cts_error->get_text( ) }| ).
+      ENDTRY.
+    ENDLOOP.
+
+    SORT lt_locked_items BY transport_request ASCENDING transport_task ASCENDING.
+
+    LOOP AT lt_locked_items ASSIGNING <ls_locked_item>.
+      AT NEW transport_request.
+        INSERT INITIAL LINE INTO TABLE ct_repo_items ASSIGNING <ls_transport_request>.
+        <ls_transport_request>-path = <ls_locked_item>-transport_request.
+        <ls_transport_request>-sortkey = c_sortkey-transport_request.
+        <ls_transport_request>-is_dir  = abap_true.
+      ENDAT.
+
+      AT NEW transport_task.
+        IF <ls_locked_item>-transport_task IS NOT INITIAL.
+          INSERT INITIAL LINE INTO TABLE ct_repo_items ASSIGNING <ls_transport_task>.
+          <ls_transport_task>-path = <ls_locked_item>-transport_task.
+          <ls_transport_task>-sortkey = c_sortkey-transport_task.
+          <ls_transport_task>-is_dir  = abap_true.
+        ENDIF.
+      ENDAT.
+
+      <ls_transport_request>-changes = <ls_transport_request>-changes + <ls_locked_item>-changes.
+      <ls_transport_task>-changes = <ls_transport_task>-changes + <ls_locked_item>-changes.
+
+      zcl_abapgit_state=>reduce( EXPORTING iv_cur = <ls_locked_item>-lstate
+                                 CHANGING cv_prev = <ls_transport_request>-lstate ).
+      zcl_abapgit_state=>reduce( EXPORTING iv_cur = <ls_locked_item>-rstate
+                                 CHANGING cv_prev = <ls_transport_request>-rstate ).
+      zcl_abapgit_state=>reduce( EXPORTING iv_cur = <ls_locked_item>-lstate
+                                 CHANGING cv_prev = <ls_transport_task>-lstate ).
+      zcl_abapgit_state=>reduce( EXPORTING iv_cur = <ls_locked_item>-rstate
+                                 CHANGING cv_prev = <ls_transport_task>-rstate ).
+
+      ASSIGN <ls_locked_item> TO <ls_item> CASTING.
+      ASSERT sy-subrc = 0.
+      APPEND <ls_item> TO ct_repo_items.
+    ENDLOOP.
   ENDMETHOD.
 ENDCLASS.
