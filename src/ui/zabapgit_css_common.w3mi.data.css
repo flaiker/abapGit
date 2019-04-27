@@ -1,4 +1,5 @@
 <<<<<<< HEAD
+<<<<<<< HEAD
 /*
  * ABAPGIT COMMON CSS
  */
@@ -247,6 +248,10 @@ table.repo_transport_tab tr.transport td {
   padding-bottom: 5px;
   padding-left: 0.5em;
   padding-right: 0,5em;
+}
+
+table.repo_transport_tab tr.transport td.toggle {
+  width: 1em;
 }
 
 table.repo_transport_tab table.repo_tab {
