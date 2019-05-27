@@ -7,18 +7,18 @@ CLASS zcl_abapgit_gui_asset_manager DEFINITION PUBLIC FINAL CREATE PUBLIC .
     TYPES:
       BEGIN OF ty_asset_entry.
         INCLUDE TYPE zif_abapgit_gui_asset_manager~ty_web_asset.
-    TYPES:  mime_name TYPE wwwdatatab-objid,
-      END OF ty_asset_entry ,
-      tt_asset_register TYPE STANDARD TABLE OF ty_asset_entry WITH KEY url .
+    TYPES: mime_name TYPE wwwdatatab-objid,
+           END OF ty_asset_entry ,
+           tt_asset_register TYPE STANDARD TABLE OF ty_asset_entry WITH KEY url.
 
     METHODS register_asset
       IMPORTING
-        !iv_url TYPE string
-        !iv_type TYPE string
-        !iv_cachable TYPE abap_bool DEFAULT abap_true
+        !iv_url       TYPE string
+        !iv_type      TYPE string
+        !iv_cachable  TYPE abap_bool DEFAULT abap_true
         !iv_mime_name TYPE wwwdatatab-objid OPTIONAL
-        !iv_base64 TYPE string OPTIONAL
-        !iv_inline TYPE string OPTIONAL .
+        !iv_base64    TYPE string OPTIONAL
+        !iv_inline    TYPE string OPTIONAL .
 
   PROTECTED SECTION.
   PRIVATE SECTION.
@@ -35,17 +35,21 @@ CLASS zcl_abapgit_gui_asset_manager DEFINITION PUBLIC FINAL CREATE PUBLIC .
 
     METHODS load_asset
       IMPORTING
-        is_asset_entry TYPE ty_asset_entry
+        is_asset_entry  TYPE ty_asset_entry
       RETURNING
         VALUE(rs_asset) TYPE zif_abapgit_gui_asset_manager~ty_web_asset
       RAISING
         zcx_abapgit_exception.
 
+    METHODS adjust_css_for_theme
+      CHANGING
+        cv_content TYPE xstring.
+
 ENDCLASS.
 
 
 
-CLASS ZCL_ABAPGIT_GUI_ASSET_MANAGER IMPLEMENTATION.
+CLASS zcl_abapgit_gui_asset_manager IMPLEMENTATION.
 
 
   METHOD get_mime_asset.
@@ -107,6 +111,10 @@ CLASS ZCL_ABAPGIT_GUI_ASSET_MANAGER IMPLEMENTATION.
       zcx_abapgit_exception=>raise( |failed to load GUI asset: { is_asset_entry-url }| ).
     ENDIF.
 
+    IF rs_asset-url = 'css/common.css'.
+      adjust_css_for_theme( CHANGING cv_content = rs_asset-content ).
+    ENDIF.
+
   ENDMETHOD.
 
 
@@ -142,7 +150,7 @@ CLASS ZCL_ABAPGIT_GUI_ASSET_MANAGER IMPLEMENTATION.
 
   METHOD zif_abapgit_gui_asset_manager~get_asset.
 
-    FIELD-SYMBOLS <ls_a> LIKE LINE of mt_asset_register.
+    FIELD-SYMBOLS <ls_a> LIKE LINE OF mt_asset_register.
 
     READ TABLE mt_asset_register WITH KEY url = iv_url ASSIGNING <ls_a>.
     IF <ls_a> IS NOT ASSIGNED.
@@ -160,5 +168,36 @@ CLASS ZCL_ABAPGIT_GUI_ASSET_MANAGER IMPLEMENTATION.
 
     rv_asset = zcl_abapgit_convert=>xstring_to_string_utf8( ls_asset-content ).
 
+  ENDMETHOD.
+
+  METHOD adjust_css_for_theme.
+    CONSTANTS: lc_var_pattern TYPE string VALUE `var\((\-\-.*)\)`.
+    DATA: lv_content       TYPE string,
+          lt_content_tab   TYPE string_table,
+          lv_variable_name TYPE string,
+          lv_offset        TYPE i,
+          lv_length        TYPE i.
+    FIELD-SYMBOLS: <lv_line> LIKE LINE OF lt_content_tab.
+
+    lv_content = zcl_abapgit_convert=>xstring_to_string_utf8( cv_content ).
+    SPLIT lv_content AT cl_abap_char_utilities=>cr_lf INTO TABLE lt_content_tab.
+
+    LOOP AT lt_content_tab ASSIGNING <lv_line>.
+      IF <lv_line> CS 'var('.
+        FIND FIRST OCCURRENCE OF REGEX lc_var_pattern
+             IN <lv_line>
+             SUBMATCHES lv_variable_name
+             MATCH OFFSET lv_offset
+             MATCH LENGTH lv_length.
+        IF sy-subrc = 0 AND lv_variable_name IS NOT INITIAL.
+          IF lv_variable_name = '--theme-background-color'.
+            REPLACE SECTION OFFSET lv_offset LENGTH lv_length OF <lv_line> WITH '#000000'.
+          ENDIF.
+        ENDIF.
+      ENDIF.
+    ENDLOOP.
+
+    cv_content = zcl_abapgit_convert=>string_to_xstring_utf8(
+      concat_lines_of( table = lt_content_tab sep = cl_abap_char_utilities=>cr_lf ) ).
   ENDMETHOD.
 ENDCLASS.
