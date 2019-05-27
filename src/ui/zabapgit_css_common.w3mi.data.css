@@ -6,6 +6,7 @@
 
 body {
   font-family: Arial,Helvetica,sans-serif;
+  font-family: var(--theme-primary-font);
   font-size:   12pt;
   background:  #E8E8E8;
   background:  var(--theme-background-color);
@@ -103,6 +104,7 @@ div#header span.page_title {
 div#toc {
   padding:          0.5em 1em;
   background-color: #f2f2f2;
+  background-color: var(--theme-accent-color);
 }
 div#toc .favorites a { opacity: 0.5; }
 div#toc .favorites:hover a { opacity: 1; }
@@ -128,6 +130,7 @@ div#footer span.version {
 
 div.dummydiv {
   background-color: #f2f2f2;
+  background-color: var(--theme-accent-color);
   padding:          0.5em 1em;
   text-align:       center;
 }
@@ -148,6 +151,7 @@ div.log .icon { padding-right: 6px; }
 div.repo {
   margin-top:       3px;
   background-color: #f2f2f2;
+  background-color: var(--theme-accent-color);
   padding: 0.5em 1em 0.5em 1em;
   position: relative;
 }
@@ -266,6 +270,7 @@ table.repo_tab {
 .repo_tab td.cmd span.state-block {
   margin-left: 1em;
   font-family: Consolas, Lucida Console, Courier, monospace;
+  font-family: var(--theme-monospace-font);
   font-size: x-small;
   vertical-align: 13%;
   display: inline-block;
@@ -389,6 +394,7 @@ div.settings_container {
   font-size: 10pt;
   color: #444;
   background-color: #f2f2f2;
+  background-color: var(--theme-accent-color);
 }
 
 div.settings_section {
@@ -398,6 +404,7 @@ div.settings_section {
 /* DIFF */
 div.diff {
   background-color: #f2f2f2;
+  background-color: var(--theme-accent-color);
   padding: 0.7em
 }
 div.diff_head {
@@ -453,6 +460,7 @@ div.diff_content tbody tr td{
 div.diff_head span.state-block {
   margin-left: 0.5em;
   font-family: Consolas, Lucida Console, Courier, monospace;
+  font-family: var(--theme-monospace-font);
   display: inline-block;
   text-align: center;
 }
@@ -490,6 +498,7 @@ div.diff_head span.state-block span.none {
 /* DIFF TABLE */
 table.diff_tab {
   font-family: Consolas, Courier, monospace;
+  font-family: var(--theme-monospace-font);
   font-size: 10pt;
   width: 100%;
 }
@@ -573,6 +582,7 @@ div.debug_container {
   font-size: 10pt;
   color: #444;
   font-family: Consolas, Courier, monospace;
+  font-family: var(--theme-monospace-font);
 }
 
 div.debug_container p {
@@ -619,6 +629,7 @@ table.db_tab tbody tr:hover, tr:active {
 /* DB ENTRY DISPLAY */
 div.db_entry {
   background-color: #f2f2f2;
+  background-color: var(--theme-accent-color);
   padding: 0.5em;
 }
 
@@ -667,6 +678,7 @@ table.tag td.label { background-color: #b3c1cc; }
 div.tutorial {
   margin-top:       3px;
   background-color: #f2f2f2;
+  background-color: var(--theme-accent-color);
   padding: 0.5em 1em 0.5em 1em;
 }
 
@@ -1013,6 +1025,7 @@ table.commit tr .title {
 /* code inspector */
 .ci-head {
   background-color: #f2f2f2;
+  background-color: var(--theme-accent-color);
   padding: 0.5em 1em;
 }
 .ci-head .package-name span {

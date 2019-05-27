@@ -176,7 +176,8 @@ CLASS zcl_abapgit_gui_asset_manager IMPLEMENTATION.
           lt_content_tab   TYPE string_table,
           lv_variable_name TYPE string,
           lv_offset        TYPE i,
-          lv_length        TYPE i.
+          lv_length        TYPE i,
+          lv_new_value     TYPE string.
     FIELD-SYMBOLS: <lv_line> LIKE LINE OF lt_content_tab.
 
     lv_content = zcl_abapgit_convert=>xstring_to_string_utf8( cv_content ).
@@ -190,8 +191,19 @@ CLASS zcl_abapgit_gui_asset_manager IMPLEMENTATION.
              MATCH OFFSET lv_offset
              MATCH LENGTH lv_length.
         IF sy-subrc = 0 AND lv_variable_name IS NOT INITIAL.
-          IF lv_variable_name = '--theme-background-color'.
-            REPLACE SECTION OFFSET lv_offset LENGTH lv_length OF <lv_line> WITH '#000000'.
+          CASE lv_variable_name.
+            WHEN '--theme-background-color'.
+              lv_new_value = '#eff4f9'.
+            WHEN '--theme-accent-color'.
+              lv_new_value = '#fcfdfe'.
+            WHEN '--theme-primary-font'.
+              lv_new_value = '"72", Arial, Helvetica, sans-serif'.
+            WHEN '--theme-monospace-font'.
+              lv_new_value = 'Lucida Console, Consolas, Courier, monospace'.
+          ENDCASE.
+          IF lv_new_value IS NOT INITIAL.
+            REPLACE SECTION OFFSET lv_offset LENGTH lv_length OF <lv_line> WITH lv_new_value.
+            CLEAR lv_new_value.
           ENDIF.
         ENDIF.
       ENDIF.
