@@ -225,9 +225,8 @@ td.cmd span.state-block span {
 }
 
 table.repo_transport_tab {
-  border: 1px solid #DDD;
+  border: 1px solid;
   border-radius: 3px;
-  background: #fff;
   width: 100%;
 }
 
@@ -235,10 +234,6 @@ table.repo_transport_tab th {
   text-align: left;
   padding-left: 0.5em;
   padding-right: 0,5em;
-}
-
-table.repo_transport_tab tr.transport {
-  background: #EEE;
 }
 
 table.repo_transport_tab tr.transport td {
@@ -275,7 +270,7 @@ table.repo_tab.fixed_columns td.files {
   white-space: nowrap;
 }
 table.repo_tab.fixed_columns td.cmd {
-  width: 6em;
+  width: 8em;
 }
 
 
