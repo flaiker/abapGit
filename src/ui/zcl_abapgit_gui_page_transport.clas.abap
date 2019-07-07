@@ -64,6 +64,8 @@ CLASS zcl_abapgit_gui_page_transport IMPLEMENTATION.
         lv_transport = iv_getdata.
         lv_branch = create_branch_for_transport( lv_transport ).
         MESSAGE |Created branch '{ lv_branch }'.| TYPE 'S'.
+        mo_repo_content->clear_cache( ).
+        mo_repo->refresh( ).
         ev_state = zcl_abapgit_gui=>c_event_state-re_render.
 
       WHEN c_action-commit_transport.
