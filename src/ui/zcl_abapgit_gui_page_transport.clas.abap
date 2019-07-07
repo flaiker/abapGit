@@ -30,7 +30,8 @@ CLASS zcl_abapgit_gui_page_transport DEFINITION
                  RAISING   zcx_abapgit_exception.
     DATA:
       mo_repo_content TYPE REF TO zcl_abapgit_gui_view_repo,
-      mo_repo         TYPE REF TO zcl_abapgit_repo_online.
+      mo_repo         TYPE REF TO zcl_abapgit_repo_online,
+      mv_call_branch  TYPE string.
 ENDCLASS.
 
 
@@ -39,12 +40,13 @@ CLASS zcl_abapgit_gui_page_transport IMPLEMENTATION.
   METHOD constructor.
     super->constructor( ).
 
+    mo_repo   = io_repo.
+    mv_call_branch = mo_repo->get_branch_name( ).
+
     CREATE OBJECT mo_repo_content
       EXPORTING
         iv_key          = io_repo->get_key( )
         iv_display_mode = zcl_abapgit_gui_view_repo=>c_display_modes-transports.
-
-    mo_repo   = io_repo.
 
     ms_control-page_title = 'Transport Overview'.
     ms_control-page_menu = build_menu( ).
@@ -52,6 +54,12 @@ CLASS zcl_abapgit_gui_page_transport IMPLEMENTATION.
 
   METHOD render_content.
     CREATE OBJECT ro_html.
+
+    " Restore previous branch after commit (TODO)
+    IF mo_repo->get_branch_name( ) <> mv_call_branch.
+      mo_repo->set_branch_name( mv_call_branch ).
+    ENDIF.
+
     ro_html->add( mo_repo_content->render( ) ).
   ENDMETHOD.
 
@@ -76,6 +84,7 @@ CLASS zcl_abapgit_gui_page_transport IMPLEMENTATION.
             io_repo                = mo_repo
             iv_filter_by_transport = lv_transport.
         ev_state = zcl_abapgit_gui=>c_event_state-new_page_w_bookmark.
+        mo_repo_content->clear_cache( ).
 
       WHEN c_action-refresh.
         mo_repo_content->clear_cache( ).
