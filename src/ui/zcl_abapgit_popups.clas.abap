@@ -32,6 +32,18 @@ CLASS zcl_abapgit_popups DEFINITION
     TYPES:
       ty_sval_tt TYPE STANDARD TABLE OF sval WITH DEFAULT KEY.
 
+    TYPES:
+      BEGIN OF ty_free_sel_field,
+        name           TYPE fieldname,
+        only_parameter TYPE abap_bool,
+        value          TYPE string,
+        value_range    TYPE rsds_selopt_t,
+        ddic_tabname   TYPE tabname,
+        ddic_fieldname TYPE fieldname,
+        text           TYPE rsseltext,
+      END OF ty_free_sel_field,
+      ty_free_sel_field_tab TYPE STANDARD TABLE OF ty_free_sel_field WITH DEFAULT KEY.
+
     CONSTANTS c_fieldname_selected TYPE lvc_fname VALUE `SELECTED` ##NO_TEXT.
     CONSTANTS c_answer_cancel      TYPE c LENGTH 1 VALUE 'A' ##NO_TEXT.
 
@@ -57,16 +69,16 @@ CLASS zcl_abapgit_popups DEFINITION
       EXPORTING
         !et_list TYPE INDEX TABLE .
     METHODS on_select_list_link_click
-      FOR EVENT link_click OF cl_salv_events_table
+        FOR EVENT link_click OF cl_salv_events_table
       IMPORTING
         !row
         !column .
     METHODS on_select_list_function_click
-      FOR EVENT added_function OF cl_salv_events_table
+        FOR EVENT added_function OF cl_salv_events_table
       IMPORTING
         !e_salv_function .
     METHODS on_double_click
-      FOR EVENT double_click OF cl_salv_events_table
+        FOR EVENT double_click OF cl_salv_events_table
       IMPORTING
         !row
         !column .
@@ -91,6 +103,12 @@ CLASS zcl_abapgit_popups DEFINITION
                 ev_value_3        TYPE spo_value
       CHANGING  ct_fields         TYPE ty_lt_fields
       RAISING   zcx_abapgit_exception.
+    METHODS popup_get_from_free_selections
+      CHANGING
+        ct_fields TYPE ty_free_sel_field_tab
+      RAISING
+        zcx_abapgit_cancel
+        zcx_abapgit_exception.
     METHODS validate_folder_logic
       IMPORTING
         iv_folder_logic TYPE string
@@ -100,7 +118,7 @@ ENDCLASS.
 
 
 
-CLASS ZCL_ABAPGIT_POPUPS IMPLEMENTATION.
+CLASS zcl_abapgit_popups IMPLEMENTATION.
 
 
   METHOD add_field.
@@ -593,16 +611,16 @@ CLASS ZCL_ABAPGIT_POPUPS IMPLEMENTATION.
 
     CALL FUNCTION 'POPUP_TO_DECIDE_LIST'
       EXPORTING
-        textline1  = 'Select pull request'
-        titel      = 'Select pull request'
-        start_col  = 30
-        start_row  = 5
+        textline1 = 'Select pull request'
+        titel     = 'Select pull request'
+        start_col = 30
+        start_row = 5
       IMPORTING
-        answer     = lv_answer
+        answer    = lv_answer
       TABLES
-        t_spopli   = lt_selection
+        t_spopli  = lt_selection
       EXCEPTIONS
-        OTHERS     = 1.
+        OTHERS    = 1.
     IF sy-subrc <> 0.
       zcx_abapgit_exception=>raise( 'Error from POPUP_TO_DECIDE_LIST' ).
     ENDIF.
@@ -822,12 +840,12 @@ CLASS ZCL_ABAPGIT_POPUPS IMPLEMENTATION.
 
     CALL FUNCTION 'F4IF_FIELD_VALUE_REQUEST'
       EXPORTING
-        tabname   = lv_tabname
-        fieldname = lv_fieldname
+        tabname    = lv_tabname
+        fieldname  = lv_fieldname
       TABLES
         return_tab = lt_ret
       EXCEPTIONS
-        OTHERS = 5.
+        OTHERS     = 5.
 
     IF sy-subrc <> 0.
       zcx_abapgit_exception=>raise( |F4IF_FIELD_VALUE_REQUEST error [{ iv_tab_field }]| ).
@@ -1445,5 +1463,298 @@ CLASS ZCL_ABAPGIT_POPUPS IMPLEMENTATION.
       ev_value_3 = <ls_field>-value.
     ENDIF.
 
+  ENDMETHOD.
+
+  METHOD zif_abapgit_popups~popup_perf_test_parameters.
+    DATA: lt_fields TYPE ty_free_sel_field_tab.
+    FIELD-SYMBOLS: <ls_field> TYPE ty_free_sel_field.
+
+    APPEND INITIAL LINE TO lt_fields ASSIGNING <ls_field>.
+    <ls_field>-name = 'PACKAGE'.
+    <ls_field>-only_parameter = abap_true.
+    <ls_field>-ddic_tabname = 'TDEVC'.
+    <ls_field>-ddic_fieldname = 'DEVCLASS'.
+    <ls_field>-text = ''.
+    <ls_field>-value = cv_package.
+
+    APPEND INITIAL LINE TO lt_fields ASSIGNING <ls_field>.
+    <ls_field>-name = 'PGMID'.
+    <ls_field>-only_parameter = abap_true.
+    <ls_field>-ddic_tabname = 'TADIR'.
+    <ls_field>-ddic_fieldname = 'PGMID'.
+    <ls_field>-text = ''.
+    <ls_field>-value = 'R3TR'.
+
+    APPEND INITIAL LINE TO lt_fields ASSIGNING <ls_field>.
+    <ls_field>-name = 'OBJECT'.
+    <ls_field>-ddic_tabname = 'TADIR'.
+    <ls_field>-ddic_fieldname = 'OBJECT'.
+
+    APPEND INITIAL LINE TO lt_fields ASSIGNING <ls_field>.
+    <ls_field>-name = 'OBJ_NAME'.
+    <ls_field>-ddic_tabname = 'TADIR'.
+    <ls_field>-ddic_fieldname = 'OBJ_NAME'.
+
+    APPEND INITIAL LINE TO lt_fields ASSIGNING <ls_field>.
+    <ls_field>-name = 'INCLUDE_SUB_PACKAGES'.
+    <ls_field>-only_parameter = abap_true.
+    <ls_field>-ddic_tabname = 'TDEVC'.
+    <ls_field>-ddic_fieldname = 'IS_ENHANCEABLE'.
+    <ls_field>-text = 'Include subpackages'.
+    <ls_field>-value = cv_include_sub_packages.
+
+    APPEND INITIAL LINE TO lt_fields ASSIGNING <ls_field>.
+    <ls_field>-name = 'MASTER_LANG_ONLY'.
+    <ls_field>-only_parameter = abap_true.
+    <ls_field>-ddic_tabname = 'TVDIR'.
+    <ls_field>-ddic_fieldname = 'FLAG'.
+    <ls_field>-text = 'Master lang only'.
+    <ls_field>-value = cv_serialize_master_lang_only.
+
+    popup_get_from_free_selections( CHANGING ct_fields = lt_fields ).
+
+
+
+*    lt_fields = VALUE #(
+*      ( tablename = 'TDEVC' fieldname = 'DEVCLASS' )
+*      ( tablename = 'TADIR' fieldname = 'PGMID' )
+*      ( tablename = 'TADIR' fieldname = 'OBJECT' )
+*      ( tablename = 'TADIR' fieldname = 'OBJ_NAME' )
+*      ( tablename = 'TDEVC' fieldname = 'IS_ENHANCEABLE' )
+*      ( tablename = 'TVDIR' fieldname = 'FLAG' )
+*    ).
+*    BREAK-POINT.
+*    lt_expressions = VALUE #(
+*      ( tablename = 'TADIR' expr_tab = VALUE #( ( fieldname = 'PGMID' option = 'EQ' low = 'R3TR' ) ) )
+*      ( tablename = 'TDEVC' expr_tab = VALUE #( ( fieldname = 'DEVCLASS' option = 'EQ' low = cv_package ) ) )
+*    ).
+*    ls_restriction = VALUE #(
+*      opt_list_tab = VALUE #( ( name = 'ONLYEQ' options = VALUE #( eq = abap_true ) ) )
+*      ass_tab = VALUE #(
+*       ( kind = 'S' fieldname = 'PGMID' sg_main = 'I' sg_addy = 'N' op_main = 'ONLYEQ' tablename = 'TADIR' )
+*       ( kind = 'S' fieldname = 'DEVCLASS' sg_main = 'I' sg_addy = 'N' op_main = 'ONLYEQ' tablename = 'TDEVC' )
+*       )
+*    ).
+*    lt_texts = VALUE #(
+*      ( tablename = 'TDEVC' fieldname = 'IS_ENHANCEABLE' text = 'Include subpackages' )
+*      ( tablename = 'TVDIR' fieldname = 'FLAG' text = 'Master lang only' )
+*    ).
+
+
+
+
+
+
+
+
+
+
+
+
+*    DATA: lt_fields                     TYPE ty_sval_tt,
+*          lv_package                    TYPE spo_value,
+*          lv_include_sub_packages       TYPE spo_value,
+*          lv_serialize_master_lang_only TYPE spo_value.
+
+*    add_field( EXPORTING iv_tabname    = 'TDEVC'
+*                         iv_fieldname  = 'DEVCLASS'
+*                         iv_fieldtext  = 'Package'
+*                         iv_obligatory = abap_true
+*                         iv_value      = cv_package
+*               CHANGING  ct_fields     = lt_fields ).
+*
+*    add_field( EXPORTING iv_tabname   = 'TVDIR'
+*                         iv_fieldname = 'FLAG'
+*                         iv_fieldtext = 'Incl. sub packages'
+*                         iv_value     = cv_include_sub_packages
+*               CHANGING  ct_fields    = lt_fields ).
+*
+*    add_field( EXPORTING iv_tabname   = 'TDEVC'
+*                         iv_fieldname = 'IS_ENHANCEABLE'
+*                         iv_fieldtext = 'Master lang only'
+*                         iv_value     = cv_serialize_master_lang_only
+*               CHANGING  ct_fields    = lt_fields ).
+*
+*    _popup_3_get_values( EXPORTING iv_popup_title    = 'Performance Test Parameters' "#EC NOTEXT
+*                                   iv_no_value_check = abap_false
+*                         IMPORTING ev_value_1        = lv_package
+*                                   ev_value_2        = lv_include_sub_packages
+*                                   ev_value_3        = lv_serialize_master_lang_only
+*                         CHANGING  ct_fields         = lt_fields ).
+*
+*    cv_package = to_upper( lv_package ).
+*    cv_include_sub_packages = boolc( lv_include_sub_packages IS NOT INITIAL ).
+*    cv_serialize_master_lang_only = boolc( lv_serialize_master_lang_only IS NOT INITIAL ).
+  ENDMETHOD.
+
+  METHOD popup_get_from_free_selections.
+    DATA: lt_fields             TYPE STANDARD TABLE OF rsdsfields,
+          lv_selection_id       TYPE dynselid,
+          ls_restriction        TYPE sscr_restrict_ds,
+          lt_texts              TYPE STANDARD TABLE OF rsdstexts,
+          lt_result_ranges      TYPE rsds_trange,
+          ls_parameter_opt_list TYPE sscr_opt_list,
+          lt_default_values     TYPE rsds_trange,
+          lv_repeat_dialog      TYPE abap_bool.
+    FIELD-SYMBOLS: <ls_input_field>            TYPE ty_free_sel_field,
+                   <ls_free_sel_field>         TYPE rsdsfields,
+                   <ls_restriction_ass>        TYPE sscr_ass_ds,
+                   <ls_text>                   TYPE rsdstexts,
+                   <ls_default_value>          TYPE rsds_range,
+                   <ls_default_value_range>    TYPE rsds_frange,
+                   <ls_default_val_range_line> TYPE rsdsselopt.
+
+    LOOP AT ct_fields ASSIGNING <ls_input_field>.
+      APPEND INITIAL LINE TO lt_fields ASSIGNING <ls_free_sel_field>.
+      <ls_free_sel_field>-fieldname = <ls_input_field>-ddic_fieldname.
+      <ls_free_sel_field>-tablename = <ls_input_field>-ddic_tabname.
+
+      IF <ls_input_field>-only_parameter = abap_true.
+        IF ls_restriction IS INITIAL.
+          ls_parameter_opt_list-name = 'ONLYEQ'.
+          ls_parameter_opt_list-options-eq = abap_true.
+          APPEND ls_parameter_opt_list TO ls_restriction-opt_list_tab.
+        ENDIF.
+
+        APPEND INITIAL LINE TO ls_restriction-ass_tab ASSIGNING <ls_restriction_ass>.
+        <ls_restriction_ass>-kind = 'S'.
+        <ls_restriction_ass>-fieldname = <ls_input_field>-ddic_fieldname.
+        <ls_restriction_ass>-tablename = <ls_input_field>-ddic_tabname.
+        <ls_restriction_ass>-sg_main = 'I'.
+        <ls_restriction_ass>-sg_addy = 'N'.
+        <ls_restriction_ass>-op_main = 'ONLYEQ'.
+      ENDIF.
+
+      IF <ls_input_field>-text IS NOT INITIAL.
+        APPEND INITIAL LINE TO lt_texts ASSIGNING <ls_text>.
+        <ls_text>-fieldname = <ls_input_field>-ddic_fieldname.
+        <ls_text>-tablename = <ls_input_field>-ddic_tabname.
+        <ls_text>-text = <ls_input_field>-text.
+      ENDIF.
+
+      IF <ls_input_field>-value IS NOT INITIAL OR <ls_input_field>-value_range IS NOT INITIAL.
+        READ TABLE lt_default_values WITH KEY tablename = <ls_input_field>-ddic_tabname
+                                     ASSIGNING <ls_default_value>.
+        IF sy-subrc <> 0.
+          APPEND INITIAL LINE TO lt_default_values ASSIGNING <ls_default_value>.
+          <ls_default_value>-tablename = <ls_input_field>-ddic_tabname.
+        ENDIF.
+
+        APPEND INITIAL LINE TO <ls_default_value>-frange_t ASSIGNING <ls_default_value_range>.
+        <ls_default_value_range>-fieldname = <ls_input_field>-ddic_fieldname.
+
+        IF <ls_input_field>-value IS NOT INITIAL.
+          APPEND INITIAL LINE TO <ls_default_value_range>-selopt_t ASSIGNING <ls_default_val_range_line>.
+          <ls_default_val_range_line>-sign = 'I'.
+          <ls_default_val_range_line>-option = 'EQ'.
+          <ls_default_val_range_line>-low = <ls_input_field>-value.
+        ELSEIF <ls_input_field>-value_range IS NOT INITIAL.
+          <ls_default_value_range>-selopt_t = <ls_input_field>-value_range.
+        ENDIF.
+      ENDIF.
+    ENDLOOP.
+
+    WHILE lv_repeat_dialog = abap_true.
+      lv_repeat_dialog = abap_false.
+      CALL FUNCTION 'FREE_SELECTIONS_INIT'
+        EXPORTING
+          kind                     = 'F'
+          field_ranges_int         = lt_default_values
+          restriction              = ls_restriction
+        IMPORTING
+          selection_id             = lv_selection_id
+        TABLES
+          fields_tab               = lt_fields
+          field_texts              = lt_texts
+        EXCEPTIONS
+          fields_incomplete        = 1
+          fields_no_join           = 2
+          field_not_found          = 3
+          no_tables                = 4
+          table_not_found          = 5
+          expression_not_supported = 6
+          incorrect_expression     = 7
+          illegal_kind             = 8
+          area_not_found           = 9
+          inconsistent_area        = 10
+          kind_f_no_fields_left    = 11
+          kind_f_no_fields         = 12
+          too_many_fields          = 13
+          dup_field                = 14
+          field_no_type            = 15
+          field_ill_type           = 16
+          dup_event_field          = 17
+          node_not_in_ldb          = 18
+          area_no_field            = 19
+          OTHERS                   = 20.
+      IF sy-subrc <> 0.
+        zcx_abapgit_exception=>raise( |Error from FREE_SELECTIONS_INIT: { sy-subrc }| ).
+      ENDIF.
+      CALL FUNCTION 'FREE_SELECTIONS_DIALOG'
+        EXPORTING
+          selection_id    = lv_selection_id
+          title           = 'Performance Test Parameters'
+          frame_text      = 'Parameters'
+          status          = 1
+          as_window       = abap_true
+          no_intervals    = abap_true
+          tree_visible    = abap_false
+        IMPORTING
+*         where_clauses   =                  " Selections in form of WHERE clauses
+*         expressions     =                  " Selections in form of logical expressions
+          field_ranges    = lt_result_ranges
+        TABLES
+          fields_tab      = lt_fields
+        EXCEPTIONS
+          internal_error  = 1
+          no_action       = 2
+          selid_not_found = 3
+          illegal_status  = 4
+          OTHERS          = 5.
+      CASE sy-subrc.
+        WHEN 0 ##NEEDED.
+        WHEN 2.
+          RAISE EXCEPTION TYPE zcx_abapgit_cancel.
+        WHEN OTHERS.
+          zcx_abapgit_exception=>raise( |Error from FREE_SELECTIONS_DIALOG: { sy-subrc }| ).
+      ENDCASE.
+
+*      LOOP AT ct_fields ASSIGNING <ls_input_field>.
+*        READ TABLE lt_result_ranges WITH
+*        IF <ls_input_field>-only_parameter = abap_true.
+*      CALL FUNCTION 'DDUT_INPUT_CHECK'
+*        EXPORTING
+*          tabname            = <ls_input_field>-ddic_tabname
+*          fieldname          = <ls_input_field>-ddic_fieldname
+**          calling_program    =                  " Name of calling program
+**          strucname          =                  " Name of Suitable Structure in Calling Program
+*          value              =                  " Value to be Checked
+*          accept_all_initial = boolc( <ls_input_field>-obligatory = abap_false )
+*          value_list         = 'S'
+**          no_forkey_check    = space            " No foreign key check required
+**          keep_fieldinfo     = space            " Hold Field Information for a Table Across Several Calls
+**        IMPORTING
+**          msgid              =                  " Possibly Message Class of Error Message
+**          msgty              =                  " Possibly Severity of Error Message
+**          msgno              =                  " Possibly Number of Error Message
+**          msgv1              =                  " Possibly First Parameter for Error Message
+**          msgv2              =                  " Possibly Second Parameter for Error Message
+**          msgv3              =                  " Possibly Third Parameter for Error Message
+**          msgv4              =                  " Possibly Fourth Parameter for Error Message
+**          value_internal     =                  " Internal Representation of VALUE
+**        TABLES
+**          failure_tab        =                  " Messages for Failed Checks
+**        CHANGING
+**          additional_fields  =                  " Contents of Other Foreign Key Fields
+**        EXCEPTIONS
+**          no_ddic_field      = 1                " Field to be Checked has no DDIC Reference
+**          illegal_move       = 2                " Cannot copy to VALUE_INTERNAL
+**          others             = 3
+*        .
+*      IF sy-subrc <> 0.
+**       MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
+**         WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+*      ENDIF.
+    ENDWHILE.
   ENDMETHOD.
 ENDCLASS.
